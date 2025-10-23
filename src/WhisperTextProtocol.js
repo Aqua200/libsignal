@@ -1,5 +1,3 @@
-
-
 const libsignal = require('libsignal'); // Importa la librería Signal (tu wrapper o fork)
 
 
