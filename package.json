@@ -1,0 +1,9 @@
+{
+  "name": "libsignal",
+  "version": "2.0.0",
+  "description": "Fork temporal de libsignal-protocol-javascript para npm",
+  "main": "index.js",
+  "type": "module",
+  "author": "Aqua200",
+  "license": "MIT"
+}
