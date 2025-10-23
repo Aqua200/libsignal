@@ -1,10 +1,28 @@
 {
   "name": "mylibsignal",
   "version": "1.0.0",
+  "description": "Wrapper local para libsignal-protocol-javascript con stub avanzado (compatible con Baileys y Termux).",
   "main": "index.js",
-  "description": "Wrapper local para libsignal-protocol-javascript (compatible con Baileys y Termux).",
+  "type": "module",
   "license": "MIT",
-  "dependencies": {
-    "libsignal-protocol-javascript": "^2.0.0"
+  "keywords": ["libsignal", "baileys", "whatsapp", "termux", "signal-protocol", "stub", "testing"],
+  "author": "Tu Nombre",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Aqua200/libsignal.git"
+  },
+  "homepage": "https://github.com/Aqua200/libsignal",
+  "bugs": {
+    "url": "https://github.com/Aqua200/libsignal/issues"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "optionalDependencies": {
+    "libsignal-protocol-javascript": "git+https://github.com/Aqua200/libsignal.git"
+  },
+  "scripts": {
+    "test": "node test.js",
+    "start": "node index.js"
   }
 }
