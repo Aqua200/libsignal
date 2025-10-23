@@ -1,8 +1,13 @@
-// src/WhisperTextProtocol.js
-
-const libsignal = require('../mylibsignal'); // 🟢 Usa tu wrapper local
+const libsignal = require('../mylibsignal'); // Wrapper local
 const { Buffer } = require('buffer');
 const BaseKeyType = require('./base_key_type');
+const {
+    LibSignalLoadError,
+    StoreImplementationError,
+    EncryptionError,
+    DecryptionError,
+    UnknownMessageTypeError
+} = require('./errors');
 
 const SignalMessageType = {
     WHISPER: 1,
@@ -12,10 +17,10 @@ const SignalMessageType = {
 class WhisperTextProtocol {
     constructor(userId, store) {
         if (!libsignal || typeof libsignal.SessionBuilder === 'undefined') {
-            throw new Error("🚨 'libsignal' no se ha cargado correctamente. Verifica tu wrapper local.");
+            throw new LibSignalLoadError();
         }
         if (!store || typeof store.loadSession !== 'function') {
-            throw new Error("⚠️ 'store' no implementa correctamente SignalProtocolStore.");
+            throw new StoreImplementationError();
         }
 
         this.userId = userId;
@@ -32,11 +37,11 @@ class WhisperTextProtocol {
 
             return {
                 type: ciphertext.type,
-                body: Buffer.from(ciphertext.body).toString('base64') // ✅ base64 para transmisión
+                body: Buffer.from(ciphertext.body || []).toString('base64') // Base64 seguro
             };
         } catch (error) {
             console.error(`❌ Error cifrando mensaje para ${this.userId}:`, error.message);
-            throw error;
+            throw new EncryptionError(error.message);
         }
     }
 
@@ -49,23 +54,33 @@ class WhisperTextProtocol {
         const sessionCipher = new libsignal.SessionCipher(this.store, this.userId);
 
         try {
-            const decryptedBuffer =
-                messageType === SignalMessageType.PRE_KEY_BUNDLE
-                    ? await sessionCipher.decryptPreKeyWhisperMessage(cipherBuffer, 'binary')
-                    : await sessionCipher.decryptWhisperMessage(cipherBuffer, 'binary');
+            let decryptedBuffer;
+
+            if (messageType === SignalMessageType.PRE_KEY_BUNDLE) {
+                decryptedBuffer = await sessionCipher.decryptPreKeyWhisperMessage(cipherBuffer, 'binary');
+            } else if (messageType === SignalMessageType.WHISPER) {
+                decryptedBuffer = await sessionCipher.decryptWhisperMessage(cipherBuffer, 'binary');
+            } else {
+                throw new UnknownMessageTypeError();
+            }
 
             return decryptedBuffer.toString('utf-8');
         } catch (error) {
             console.error(`❌ Error descifrando mensaje de ${this.userId}:`, error.message);
-            throw error;
+            throw new DecryptionError(error.message);
         }
     }
 
     // 🧩 Crear sesión inicial
     async createSession(preKeyBundle) {
-        const sessionBuilder = new libsignal.SessionBuilder(this.store, this.userId);
-        await sessionBuilder.processPreKey(preKeyBundle);
-        console.log(`🔑 Sesión Signal establecida con ${this.userId}.`);
+        try {
+            const sessionBuilder = new libsignal.SessionBuilder(this.store, this.userId);
+            await sessionBuilder.processPreKey(preKeyBundle);
+            console.log(`🔑 Sesión Signal establecida con ${this.userId}.`);
+        } catch (error) {
+            console.error(`❌ Error creando sesión para ${this.userId}:`, error.message);
+            throw error;
+        }
     }
 }
 
