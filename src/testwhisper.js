@@ -1,7 +1,6 @@
 // src/testwhisper.js
-import { WhisperTextProtocol, SignalMessageType } from './WhisperTextProtocol.js';
-import { BaseKeyType } from './base_key_type.js';
-import libsignal from '../mylibsignal/index.js'; // tu wrapper
+const { WhisperTextProtocol, SignalMessageType, BaseKeyType } = require('./WhisperTextProtocol.js');
+const libsignal = require('../mylibsignal/index.js'); // tu wrapper
 
 // Mock store simple en memoria
 class MemoryStore {
