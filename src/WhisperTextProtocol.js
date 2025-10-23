@@ -1,3 +1,5 @@
+// src/WhisperTextProtocol.js
+
 const libsignal = require('../mylibsignal'); // Wrapper local
 const { Buffer } = require('buffer');
 const BaseKeyType = require('./base_key_type');
@@ -33,11 +35,11 @@ class WhisperTextProtocol {
     async encryptMessage(plaintext) {
         try {
             const sessionCipher = new libsignal.SessionCipher(this.store, this.userId);
-            const ciphertext = await sessionCipher.encrypt(Buffer.from(plaintext, 'utf-8'));
+            const ciphertextBuffer = await sessionCipher.encrypt(Buffer.from(plaintext, 'utf-8'));
 
             return {
-                type: ciphertext.type,
-                body: Buffer.from(ciphertext.body || []).toString('base64') // Base64 seguro
+                type: SignalMessageType.WHISPER,
+                body: Buffer.from(ciphertextBuffer).toString('base64') // Base64 seguro
             };
         } catch (error) {
             console.error(`❌ Error cifrando mensaje para ${this.userId}:`, error.message);
@@ -46,7 +48,7 @@ class WhisperTextProtocol {
     }
 
     // 🔓 Descifrar mensaje
-    async decryptMessage(ciphertext, messageType) {
+    async decryptMessage(ciphertext) {
         const cipherBuffer = Buffer.isBuffer(ciphertext)
             ? ciphertext
             : Buffer.from(ciphertext, 'base64');
@@ -54,17 +56,9 @@ class WhisperTextProtocol {
         const sessionCipher = new libsignal.SessionCipher(this.store, this.userId);
 
         try {
-            let decryptedBuffer;
-
-            if (messageType === SignalMessageType.PRE_KEY_BUNDLE) {
-                decryptedBuffer = await sessionCipher.decryptPreKeyWhisperMessage(cipherBuffer, 'binary');
-            } else if (messageType === SignalMessageType.WHISPER) {
-                decryptedBuffer = await sessionCipher.decryptWhisperMessage(cipherBuffer, 'binary');
-            } else {
-                throw new UnknownMessageTypeError();
-            }
-
-            return decryptedBuffer.toString('utf-8');
+            // El stub avanzado solo tiene decrypt() genérico
+            const decrypted = await sessionCipher.decrypt(cipherBuffer);
+            return decrypted.toString('utf-8');
         } catch (error) {
             console.error(`❌ Error descifrando mensaje de ${this.userId}:`, error.message);
             throw new DecryptionError(error.message);
@@ -75,7 +69,7 @@ class WhisperTextProtocol {
     async createSession(preKeyBundle) {
         try {
             const sessionBuilder = new libsignal.SessionBuilder(this.store, this.userId);
-            await sessionBuilder.processPreKey(preKeyBundle);
+            await sessionBuilder.build(preKeyBundle); // stub usa build()
             console.log(`🔑 Sesión Signal establecida con ${this.userId}.`);
         } catch (error) {
             console.error(`❌ Error creando sesión para ${this.userId}:`, error.message);
