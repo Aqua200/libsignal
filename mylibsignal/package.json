@@ -1,0 +1,7 @@
+{
+  "name": "libsignal",
+  "version": "1.0.0",
+  "main": "index.js",
+  "description": "Custom local libsignal module for Baileys.",
+  "license": "MIT"
+}
