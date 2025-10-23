@@ -2,6 +2,9 @@
   "name": "libsignal",
   "version": "1.0.0",
   "main": "index.js",
-  "description": "Custom local libsignal module for Baileys.",
-  "license": "MIT"
+  "description": "Local wrapper for signal-protocol-typescript for Baileys compatibility.",
+  "license": "MIT",
+  "dependencies": {
+    "signal-protocol-typescript": "^4.0.0" 
+  }
 }
