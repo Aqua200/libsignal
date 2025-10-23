@@ -1,63 +1,99 @@
-const libsignal = require('libsignal'); // Importa la librería Signal (tu wrapper o fork)
+// src/WhisperTextProtocol.js
 
+const libsignal = require('libsignal'); // Asume que tu wrapper local ('mylibsignal') está funcionando.
+const { Buffer } = require('buffer'); 
 
+// 🛑 IMPORTAR EL ARCHIVO DE CONSTANTES BASE_KEY_TYPE 🛑
+// Asume que este archivo está en el mismo directorio (src/)
+const BaseKeyType = require('./base_key_type'); 
+
+// Constantes para los tipos de mensajes Signal
+const SignalMessageType = {
+    WHISPER: 1,      // Mensaje cifrado normal
+    PRE_KEY_BUNDLE: 3 // Mensaje usado para iniciar una nueva sesión
+};
+
+/**
+ * @class WhisperTextProtocol
+ * @description Clase central para interactuar con la criptografía de Signal Protocol.
+ */
 class WhisperTextProtocol {
-    
+    /**
+     * @param {string} userId - El JID (user@s.whatsapp.net) del contacto remoto.
+     * @param {object} store - La tienda de protocolo que implementa SignalProtocolStore.
+     */
     constructor(userId, store) {
-        if (!libsignal) {
-            throw new Error("La librería 'libsignal' no está disponible. Asegúrate de que esté instalada correctamente.");
+        if (!libsignal || typeof libsignal.SessionBuilder === 'undefined') {
+            throw new Error("🚨 Error: La librería 'libsignal' no se ha cargado correctamente. Verifica tu instalación.");
         }
         this.userId = userId;
         this.store = store;
-        this.sessionBuilder = new libsignal.SessionBuilder(store, userId);
+
+        // Se puede usar BaseKeyType aquí, por ejemplo, al inicializar la tienda
+        console.log(`Inicializando protocolo para ${this.userId}. Nuestro tipo de clave: ${BaseKeyType.OURS}`);
     }
 
-    
+    /**
+     * @description Cifra un mensaje de texto.
+     * @param {string} plaintext - El mensaje a cifrar.
+     * @returns {Promise<Buffer>} Un buffer del mensaje cifrado serializado.
+     */
     async encryptMessage(plaintext) {
-                const sessionCipher = new libsignal.SessionCipher(this.store, this.userId);
-        
-                const ciphertext = await sessionCipher.encrypt(Buffer.from(plaintext, 'utf-8'));
-        
-                return {
-            type: ciphertext.type, // 3 (PRE_KEY_BUNDLE), 1 (WHISPER), etc.
-            body: Buffer.from(ciphertext.serialize()).toString('base64')
-        };
-    }
-
-    async decryptMessage(ciphertext, messageType) {
-                const sessionCipher = new libsignal.SessionCipher(this.store, this.userId);
-        
-        let decryptedData;
         try {
-            if (messageType === 3) { // Mensaje de PreKey (para iniciar sesión)
-                decryptedData = await sessionCipher.decryptPreKeyWhisperMessage(ciphertext);
-            } else if (messageType === 1) { // Mensaje normal de Whisper
-                decryptedData = await sessionCipher.decryptWhisperMessage(ciphertext);
-            } else {
-                throw new Error(`Tipo de mensaje desconocido: ${messageType}`);
-            }
-
-            // 2. Devolver el texto
-            return Buffer.from(decryptedData).toString('utf-8');
-
+            const sessionCipher = new libsignal.SessionCipher(this.store, this.userId);
+            const ciphertext = await sessionCipher.encrypt(Buffer.from(plaintext, 'utf-8'));
+            
+            // Serializa el resultado para el envío por la red
+            return Buffer.from(ciphertext.serialize());
         } catch (error) {
-            console.error(`Error al descifrar mensaje de ${this.userId}:`, error.message);
-            // Manejo de errores criptográficos: puede indicar una clave perdida o reseteada.
-            throw new Error("Fallo en la sincronización de la clave de sesión.");
+            console.error(`❌ Error de cifrado para ${this.userId}:`, error.message);
+            throw error;
         }
     }
 
     /**
-     * @description Inicia una nueva sesión Signal para un destinatario, 
-     * descargando su paquete de claves (PreKeyBundle).
-     * @param {PreKeyBundle} preKeyBundle - El paquete de claves públicas del destinatario.
+     * @description Descifra un mensaje cifrado recibido.
+     * @param {Buffer | string} ciphertext - El mensaje cifrado.
+     * @param {number} messageType - Tipo de mensaje (1 para WHISPER, 3 para PRE_KEY_BUNDLE).
+     * @returns {Promise<string>} El mensaje de texto descifrado.
+     */
+    async decryptMessage(ciphertext, messageType) {
+        const cipherBuffer = Buffer.isBuffer(ciphertext) ? ciphertext : Buffer.from(ciphertext, 'base64');
+        const sessionCipher = new libsignal.SessionCipher(this.store, this.userId);
+        
+        let decryptedBuffer;
+        try {
+            if (messageType === SignalMessageType.PRE_KEY_BUNDLE) {
+                decryptedBuffer = await sessionCipher.decryptPreKeyWhisperMessage(cipherBuffer);
+            } else if (messageType === SignalMessageType.WHISPER) {
+                decryptedBuffer = await sessionCipher.decryptWhisperMessage(cipherBuffer);
+            } else {
+                throw new Error(`Tipo de mensaje Signal desconocido: ${messageType}`);
+            }
+
+            return decryptedBuffer.toString('utf-8');
+
+        } catch (error) {
+            console.error(`❌ Error crítico de descifrado para ${this.userId}:`, error.message);
+            throw error; 
+        }
+    }
+
+    /**
+     * @description Inicia una nueva sesión Signal procesando el PreKeyBundle del contacto.
+     * @param {object} preKeyBundle - El paquete de claves públicas del destinatario.
      * @returns {Promise<void>}
      */
     async createSession(preKeyBundle) {
-        // Este método usa el SessionBuilder para construir la sesión
-        await this.sessionBuilder.processPreKey(preKeyBundle);
-        console.log(`Sesión Signal creada con ${this.userId}.`);
+        const sessionBuilder = new libsignal.SessionBuilder(this.store, this.userId);
+        
+        await sessionBuilder.processPreKey(preKeyBundle);
+        console.log(`🔑 Sesión Signal establecida con ${this.userId}.`);
     }
 }
 
-module.exports = WhisperTextProtocol;
+module.exports = { 
+    WhisperTextProtocol, 
+    SignalMessageType,
+    BaseKeyType // Opcional: Re-exportamos BaseKeyType para otros módulos que puedan necesitarlo
+};
