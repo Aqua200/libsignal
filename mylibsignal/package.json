@@ -1,10 +1,10 @@
 {
-  "name": "libsignal",
+  "name": "mylibsignal",
   "version": "1.0.0",
   "main": "index.js",
-  "description": "Local wrapper for signal-protocol-typescript for Baileys compatibility.",
+  "description": "Wrapper local para libsignal-protocol-javascript (compatible con Baileys y Termux).",
   "license": "MIT",
   "dependencies": {
-    "signal-protocol-typescript": "^4.0.0" 
+    "libsignal-protocol-javascript": "^2.0.0"
   }
 }
