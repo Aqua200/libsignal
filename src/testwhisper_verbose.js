@@ -1,59 +1,49 @@
 // src/testwhisper_verbose.js
-import { WhisperTextProtocol, BaseKeyType } from './WhisperTextProtocol.js';
+import { writeFileSync, appendFileSync } from 'fs';
+import { WhisperTextProtocol, SignalMessageType } from './WhisperTextProtocol.js';
+import { BaseKeyType, describeKeyType } from './base_key_type.js';
 import libsignal from '../mylibsignal/index.js';
-import { inspect } from 'util';
 
-function pretty(obj, opts = {}) {
-  return inspect(obj, { depth: null, colors: false, maxArrayLength: null, ...opts });
+const LOG_FILE = './test_log.txt';
+
+// Helper para logging
+function log(message, type = 'INFO') {
+  const line = `[${type}] ${message}\n`;
+  process.stdout.write(line);
+  appendFileSync(LOG_FILE, line);
 }
 
-class MemoryStore {
-  constructor() { this.sessions = {}; }
-  async loadSession(userId) { return this.sessions[userId] || null; }
-  async storeSession(userId, session) { this.sessions[userId] = session; }
-}
+async function runTest() {
+  log('✨ Iniciando test verboso de libsignal');
 
-async function logLibsignalExports() {
-  try {
-    console.log('--- libsignal exports (inspección profunda) ---');
-    console.log(pretty(libsignal));
-  } catch (e) {
-    console.error('Error inspeccionando libsignal exports:', e && e.stack ? e.stack : e);
-  }
-}
+  // Detectar si es stub o librería real
+  const isStub = libsignal.KeyHelper?.generateIdentityKeyPair?.toString().includes('stub');
+  log(`Tipo detectado: ${isStub ? 'STUB (simulado)' : 'REAL LIBRARY'}`);
 
-async function runVerboseTest() {
-  console.log('✨ Iniciando test verboso de libsignal');
+  log('--- libsignal exports (inspección profunda) ---');
+  log(JSON.stringify({
+    SignalProtocolAddress: libsignal.SignalProtocolAddress?.toString(),
+    SessionBuilder: libsignal.SessionBuilder?.toString(),
+    SessionCipher: libsignal.SessionCipher?.toString(),
+    KeyHelper: libsignal.KeyHelper
+  }, null, 2));
 
-  // Indicar si es stub o real (intentamos deducir)
-  try {
-    const isStub = (
-      !libsignal ||
-      (libsignal && libsignal.KeyHelper && typeof libsignal.KeyHelper.generateIdentityKeyPair === 'function' &&
-       (libsignal.KeyHelper.generateIdentityKeyPair.toString().includes('[native code]') === false))
-    );
-    console.log('Tipo detectado:', isStub ? 'STUB (simulado)' : 'LIBRERÍA REAL (posible)');
-  } catch (e) {
-    console.warn('No fue posible detectar tipo (continuamos)...', e && e.stack ? e.stack : e);
-  }
+  const store = {
+    sessions: {},
+    async loadSession(userId) { return this.sessions[userId] || null; },
+    async storeSession(userId, session) { this.sessions[userId] = session; }
+  };
 
-  await logLibsignalExports();
-
-  const store = new MemoryStore();
   const userId = 'user@example.com';
-
-  // 1) Instanciar protocolo
   let protocol;
   try {
     protocol = new WhisperTextProtocol(userId, store);
-    console.log('✔ WhisperTextProtocol instanciado correctamente.');
-  } catch (error) {
-    console.error('❌ ERROR al instanciar WhisperTextProtocol:');
-    console.error(error && error.stack ? error.stack : pretty(error));
+    log('✔ WhisperTextProtocol instanciado correctamente');
+  } catch (err) {
+    log(`❌ Error instanciando protocolo: ${err.message}`, 'ERROR');
     return;
   }
 
-  // 2) Generar preKeyBundle
   let preKeyBundle;
   try {
     preKeyBundle = {
@@ -62,70 +52,50 @@ async function runVerboseTest() {
       signedPreKey: await libsignal.KeyHelper.generateSignedPreKey(),
       registrationId: 1234
     };
-    console.log('✔ preKeyBundle generado:');
-    console.log(pretty(preKeyBundle));
-  } catch (error) {
-    console.error('❌ ERROR al generar preKeyBundle:');
-    console.error(error && error.stack ? error.stack : pretty(error));
+    log('✔ preKeyBundle generado:');
+    log(JSON.stringify(preKeyBundle, null, 2));
+  } catch (err) {
+    log(`❌ Error generando preKeyBundle: ${err.message}`, 'ERROR');
     return;
   }
 
-  // 3) Crear sesión
   try {
     await protocol.createSession(preKeyBundle);
-    console.log('✔ Sesión creada correctamente.');
-  } catch (error) {
-    console.error('❌ ERROR al crear sesión:');
-    console.error(error && error.stack ? error.stack : pretty(error));
-    console.log('Estado store:', pretty(store.sessions));
+    log('✔ Sesión creada correctamente');
+  } catch (err) {
+    log(`❌ Error creando sesión: ${err.message}`, 'ERROR');
     return;
   }
 
-  // 4) Cifrar mensaje
-  const plaintext = 'Mensaje de prueba — verbose';
-  let encrypted;
+  const message = 'Mensaje de prueba — verbose';
+  let encrypted, decrypted;
   try {
-    encrypted = await protocol.encryptMessage(plaintext);
-    console.log('✔ Mensaje cifrado:');
-    console.log(pretty(encrypted));
-  } catch (error) {
-    console.error('❌ ERROR al cifrar mensaje:');
-    console.error(error && error.stack ? error.stack : pretty(error));
+    encrypted = await protocol.encryptMessage(message);
+    log('✔ Mensaje cifrado:');
+    log(JSON.stringify(encrypted, null, 2));
+  } catch (err) {
+    log(`❌ Error cifrando mensaje: ${err.message}`, 'ERROR');
     return;
   }
 
-  // 5) Descifrar mensaje
   try {
-    const decrypted = await protocol.decryptMessage(encrypted.body);
-    console.log('✔ Mensaje descifrado:');
-    console.log(pretty(decrypted));
-    console.log(decrypted === plaintext ? '✅ Coincide con el original' : '❌ NO coincide con el original');
-  } catch (error) {
-    console.error('❌ ERROR al descifrar mensaje:');
-    console.error(error && error.stack ? error.stack : pretty(error));
+    decrypted = await protocol.decryptMessage(encrypted.body);
+    log('✔ Mensaje descifrado:');
+    log(`'${decrypted}'`);
+  } catch (err) {
+    log(`❌ Error descifrando mensaje: ${err.message}`, 'ERROR');
     return;
   }
 
-  // 6) Inspeccionar stores internos (si el stub los expone)
-  try {
-    if (libsignal._debug) {
-      console.log('--- libsignal._debug ---');
-      console.log(pretty(libsignal._debug));
-    } else {
-      console.log('libsignal._debug no disponible (stub minimal o librería real sin exposiciones internas).');
-    }
-  } catch (e) {
-    console.error('Error inspeccionando _debug:', e && e.stack ? e.stack : pretty(e));
+  if (decrypted === message) {
+    log('✅ Coincide con el original');
+  } else {
+    log('❌ No coincide con el mensaje original', 'ERROR');
   }
 
-  console.log('🟢 Test verboso finalizado.');
+  log('🟢 Test verboso finalizado.');
 }
 
-(async () => {
-  try {
-    await runVerboseTest();
-  } catch (e) {
-    console.error('Falla no controlada en runVerboseTest:');
-    console.error(e && e.stack ? e.stack : pretty(e));
-  }
-})();
+// Limpiar log previo
+writeFileSync('./test_log.txt', '');
+runTest().catch(err => log(`💥 Excepción no atrapada: ${err.message}`, 'ERROR'));
