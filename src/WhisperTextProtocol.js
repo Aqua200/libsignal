@@ -1,14 +1,13 @@
 // src/WhisperTextProtocol.js
 import { Buffer } from 'buffer';
-import BaseKeyType from './base_key_type.js';
-import {
-  LibSignalLoadError,
-  StoreImplementationError,
-  EncryptionError,
-  DecryptionError,
-  UnknownMessageTypeError
-} from './errors.js';
+import { BaseKeyType } from './base_key_type.js';
 import libsignal from '../mylibsignal/index.js';
+
+class LibSignalLoadError extends Error {}
+class StoreImplementationError extends Error {}
+class EncryptionError extends Error {}
+class DecryptionError extends Error {}
+class UnknownMessageTypeError extends Error {}
 
 const SignalMessageType = {
   WHISPER: 1,
@@ -30,7 +29,6 @@ class WhisperTextProtocol {
     console.log(`🟣 Inicializando protocolo para ${this.userId} — Tipo de clave: ${BaseKeyType.OURS}`);
   }
 
-  // 🔐 Cifrar mensaje
   async encryptMessage(plaintext) {
     try {
       const sessionCipher = new libsignal.SessionCipher(this.store, this.userId);
@@ -38,7 +36,7 @@ class WhisperTextProtocol {
 
       return {
         type: SignalMessageType.WHISPER,
-        body: Buffer.from(ciphertextBuffer).toString('base64') // Base64 seguro
+        body: Buffer.from(ciphertextBuffer).toString('base64')
       };
     } catch (error) {
       console.error(`❌ Error cifrando mensaje para ${this.userId}:`, error.message);
@@ -46,12 +44,8 @@ class WhisperTextProtocol {
     }
   }
 
-  // 🔓 Descifrar mensaje
   async decryptMessage(ciphertext) {
-    const cipherBuffer = Buffer.isBuffer(ciphertext)
-      ? ciphertext
-      : Buffer.from(ciphertext, 'base64');
-
+    const cipherBuffer = Buffer.isBuffer(ciphertext) ? ciphertext : Buffer.from(ciphertext, 'base64');
     const sessionCipher = new libsignal.SessionCipher(this.store, this.userId);
 
     try {
@@ -63,7 +57,6 @@ class WhisperTextProtocol {
     }
   }
 
-  // 🧩 Crear sesión inicial
   async createSession(preKeyBundle) {
     try {
       const sessionBuilder = new libsignal.SessionBuilder(this.store, this.userId);
