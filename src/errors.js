@@ -1,73 +1,50 @@
-/**
- * Centraliza los errores comunes del sistema Signal Protocol.
- * Compatible con WhisperTextProtocol y librerías tipo Baileys.
- */
-
-/**
- * Error cuando la librería libsignal no está cargada correctamente.
- */
-class LibSignalLoadError extends Error {
-    constructor(message = "🚨 La librería 'libsignal' no se ha cargado correctamente.") {
-        super(message);
-        this.name = "LibSignalLoadError";
-    }
+class SignalProtocolError extends Error {
+  
+  constructor(message, cause) {
+        super(message, { cause });
+    
+    this.name = this.constructor.name;
+  }
 }
 
-/**
- * Error cuando la tienda SignalProtocolStore no implementa los métodos necesarios.
- */
-class StoreImplementationError extends Error {
-    constructor(message = "⚠️ La store no implementa correctamente SignalProtocolStore.") {
-        super(message);
-        this.name = "StoreImplementationError";
-    }
+
+export class LibSignalLoadError extends SignalProtocolError {
+  constructor(message = "La librería 'libsignal' no se ha cargado correctamente.", cause) {
+    super(message, cause);
+  }
 }
 
-/**
- * Error al cifrar un mensaje.
- */
-class EncryptionError extends Error {
-    constructor(message = "❌ Error cifrando mensaje.") {
-        super(message);
-        this.name = "EncryptionError";
-    }
+
+export class StoreImplementationError extends SignalProtocolError {
+  constructor(message = "La store no implementa correctamente la interfaz SignalProtocolStore.", cause) {
+    super(message, cause);
+  }
 }
 
-/**
- * Error al descifrar un mensaje.
- */
-class DecryptionError extends Error {
-    constructor(message = "❌ Error descifrando mensaje.") {
-        super(message);
-        this.name = "DecryptionError";
-    }
+
+export class EncryptionError extends SignalProtocolError {
+  constructor(message = "Error durante el cifrado del mensaje.", cause) {
+    super(message, cause);
+  }
 }
 
-/**
- * Error cuando el tipo de mensaje Signal es desconocido.
- */
-class UnknownMessageTypeError extends Error {
-    constructor(message = "❓ Tipo de mensaje Signal desconocido.") {
-        super(message);
-        this.name = "UnknownMessageTypeError";
-    }
+
+export class DecryptionError extends SignalProtocolError {
+  constructor(message = "Error durante el descifrado del mensaje.", cause) {
+    super(message, cause);
+  }
 }
 
-/**
- * Error cuando la clave de sesión no es válida.
- */
-class InvalidKeyError extends Error {
-    constructor(message = "❌ Clave inválida o corrupta.") {
-        super(message);
-        this.name = "InvalidKeyError";
-    }
+
+export class UnknownMessageTypeError extends SignalProtocolError {
+  constructor(message = "El tipo de mensaje Signal es desconocido o no soportado.", cause) {
+    super(message, cause);
+  }
 }
 
-module.exports = {
-    LibSignalLoadError,
-    StoreImplementationError,
-    EncryptionError,
-    DecryptionError,
-    UnknownMessageTypeError,
-    InvalidKeyError
-};
+
+export class InvalidKeyError extends SignalProtocolError {
+  constructor(message = "La clave proporcionada es inválida, está corrupta o tiene un formato incorrecto.", cause) {
+    super(message, cause);
+  }
+}
