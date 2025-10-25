@@ -1,57 +1,50 @@
-const protobuf = require('protobufjs');
+import protobuf from 'protobufjs/light'; // Usamos la versión 'light' que es suficiente aquí.
+import { Buffer } from 'buffer';
+import { InvalidKeyError } from './errors.js';
 
-/**
- * Este módulo define los mensajes Protobuf usados en Signal Protocol.
- * Ejemplo: PreKeyBundle, WhisperMessage.
- */
-
-// Carga dinámica de esquema Protobuf
-// Puedes reemplazar la ruta con tu archivo .proto si lo tienes
 const root = new protobuf.Root();
 
-// Definición simple para demostración
-const PreKeyBundle = new protobuf.Type("PreKeyBundle")
-    .add(new protobuf.Field("registrationId", 1, "uint32"))
-    .add(new protobuf.Field("deviceId", 2, "uint32"))
-    .add(new protobuf.Field("preKeyPublic", 3, "bytes"))
-    .add(new protobuf.Field("signedPreKeyPublic", 4, "bytes"))
-    .add(new protobuf.Field("signedPreKeySignature", 5, "bytes"))
-    .add(new protobuf.Field("identityKey", 6, "bytes"));
+export const PreKeyBundle = root.define("signal.PreKeyBundle").add(
+  new protobuf.Field("registrationId", 1, "uint32")
+).add(
+  new protobuf.Field("deviceId", 2, "uint32")
+).add(
+  new protobuf.Field("preKeyPublic", 3, "bytes")
+).add(
+  new protobuf.Field("signedPreKeyPublic", 4, "bytes")
+).add(
+  new protobuf.Field("signedPreKeySignature", 5, "bytes")
+).add(
+  new protobuf.Field("identityKey", 6, "bytes")
+);
 
-const WhisperMessage = new protobuf.Type("WhisperMessage")
-    .add(new protobuf.Field("type", 1, "uint32"))
-    .add(new protobuf.Field("body", 2, "bytes"));
+export const WhisperMessage = root.define("signal.WhisperMessage").add(
+  new protobuf.Field("type", 1, "uint32")
+).add(
+  new protobuf.Field("body", 2, "bytes")
+);
 
-root.define("signal").add(PreKeyBundle).add(WhisperMessage);
 
-/**
- * Serializa un objeto a Protobuf
- * @param {Object} obj - Objeto a serializar
- * @param {protobuf.Type} type - Tipo de mensaje (PreKeyBundle o WhisperMessage)
- * @returns {Buffer}
- */
-function serialize(obj, type) {
-    const errMsg = type.verify(obj);
-    if (errMsg) throw new Error("❌ Error validando Protobuf: " + errMsg);
-    const message = type.create(obj);
-    return type.encode(message).finish();
+export function serialize(payload, messageType) {
+  const validationError = messageType.verify(payload);
+  if (validationError) {
+    throw new Error(`Validación de Protobuf fallida: ${validationError}`);
+  }
+  
+  const message = messageType.create(payload);
+  const buffer = messageType.encode(message).finish();
+  return Buffer.from(buffer);
 }
 
-/**
- * Deserializa un buffer Protobuf a objeto
- * @param {Buffer} buffer
- * @param {protobuf.Type} type
- * @returns {Object}
- */
-function deserialize(buffer, type) {
-    const message = type.decode(buffer);
-    return type.toObject(message, { defaults: true });
+W
+export function deserialize(buffer, messageType) {
+  if (!Buffer.isBuffer(buffer)) {
+    throw new InvalidKeyError('La deserialización requiere un Buffer válido.');
+  }
+  
+  const message = messageType.decode(buffer);
+  return messageType.toObject(message, {
+    bytes: Buffer, // Asegura que los campos 'bytes' se decodifiquen como Buffers
+    defaults: true,
+  });
 }
-
-module.exports = {
-    root,
-    PreKeyBundle,
-    WhisperMessage,
-    serialize,
-    deserialize
-};
