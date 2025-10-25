@@ -1,108 +1,76 @@
-// src/signal_store.js
+import SessionRecord from './session_record.js';
+import { Buffer } from 'buffer';
 
-const SessionRecord = require('./session_record');
-const ProtocolAddress = require('./protocol_address');
-const QueueJob = require('./queue_job');
-const KeyHelper = require('./keyhelper');
-const { curve } = require('./curve');
 
-/**
- * SignalStore: implementación de SignalProtocolStore
- * Compatible con WhisperTextProtocol, SessionBuilder y SessionCipher
- */
-class SignalStore {
-    constructor() {
-        // Diccionarios internos
-        this.sessions = new Map();        // address.toString() => SessionRecord
-        this.identityKeys = new Map();    // address.name => Buffer
-        this.preKeys = new Map();         // preKeyId => { publicKey, privateKey }
-        this.signedPreKeys = new Map();   // signedPreKeyId => { publicKey, privateKey, signature }
+export default class SignalStore {
+  
+  constructor(initialState = {}) {
+    this.#identityKeyPair = initialState.identityKeyPair || null;
+    this.#registrationId = initialState.registrationId || null;
+    
+    this.#sessions = new Map();      // Map<string, SessionRecord>
+    this.#preKeys = new Map();       // Map<number, { pubKey: Buffer, privKey: Buffer }>
+    this.#signedPreKeys = new Map(); // Map<number, { pubKey: Buffer, privKey: Buffer }>
+  }
 
-        this.queue = new QueueJob();      // Procesa jobs de forma secuencial
+  #identityKeyPair;
+  #registrationId;
+  #sessions;
+  #preKeys;
+  #signedPreKeys;
+
+
+
+  getIdentityKeyPair = () => Promise.resolve(this.#identityKeyPair);
+  getLocalRegistrationId = () => Promise.resolve(this.#registrationId);
+  storeIdentityKeyPair = (identityKeyPair) => {
+    this.#identityKeyPair = identityKeyPair;
+    return Promise.resolve();
+  };
+  storeLocalRegistrationId = (registrationId) => {
+    this.#registrationId = registrationId;
+    return Promise.resolve();
+  };
+
+  
+  loadSession = (addressStr) => Promise.resolve(this.#sessions.get(addressStr) ?? undefined);
+  storeSession = (addressStr, record) => {
+    this.#sessions.set(addressStr, new SessionRecord(record)); // Asegura que sea una instancia
+    return Promise.resolve();
+  };
+  containsSession = (addressStr) => Promise.resolve(this.#sessions.has(addressStr));
+  removeSession = (addressStr) => {
+    this.#sessions.delete(addressStr);
+    return Promise.resolve();
+  };
+  removeAllSessions = (addressName) => {
+    for (const key of this.#sessions.keys()) {
+      if (key.startsWith(addressName)) {
+        this.#sessions.delete(key);
+      }
     }
+    return Promise.resolve();
+  };
 
-    // ----------------------------
-    // Sessions
-    // ----------------------------
-    async loadSession(addressStr) {
-        return this.sessions.get(addressStr) || null;
-    }
-
-    async storeSession(addressStr, sessionRecord) {
-        if (!(sessionRecord instanceof SessionRecord)) {
-            throw new TypeError("❌ sessionRecord debe ser instancia de SessionRecord");
-        }
-        this.sessions.set(addressStr, sessionRecord);
-    }
-
-    async removeSession(addressStr) {
-        this.sessions.delete(addressStr);
-    }
-
-    async getAllSessions() {
-        return Array.from(this.sessions.values());
-    }
-
-    // ----------------------------
-    // IdentityKeys
-    // ----------------------------
-    async loadIdentityKey(addressName) {
-        return this.identityKeys.get(addressName) || null;
-    }
-
-    async storeIdentityKey(addressName, keyBuffer) {
-        if (!Buffer.isBuffer(keyBuffer)) throw new TypeError("❌ keyBuffer debe ser Buffer");
-        this.identityKeys.set(addressName, keyBuffer);
-    }
-
-    // ----------------------------
-    // PreKeys
-    // ----------------------------
-    async loadPreKey(preKeyId) {
-        return this.preKeys.get(preKeyId) || null;
-    }
-
-    async storePreKey(preKeyId, preKey) {
-        this.preKeys.set(preKeyId, preKey);
-    }
-
-    async removePreKey(preKeyId) {
-        this.preKeys.delete(preKeyId);
-    }
-
-    // ----------------------------
-    // Signed PreKeys
-    // ----------------------------
-    async loadSignedPreKey(signedPreKeyId) {
-        return this.signedPreKeys.get(signedPreKeyId) || null;
-    }
-
-    async storeSignedPreKey(signedPreKeyId, signedPreKey) {
-        this.signedPreKeys.set(signedPreKeyId, signedPreKey);
-    }
-
-    async removeSignedPreKey(signedPreKeyId) {
-        this.signedPreKeys.delete(signedPreKeyId);
-    }
-
-    // ----------------------------
-    // Job queue
-    // ----------------------------
-    addJob(job) {
-        this.queue.add(job);
-    }
-
-    getQueueSize() {
-        return this.queue.size();
-    }
+  
+  loadPreKey = (keyId) => Promise.resolve(this.#preKeys.get(keyId) ?? undefined);
+  storePreKey = (keyId, keyPair) => {
+    this.#preKeys.set(keyId, keyPair);
+    return Promise.resolve();
+  };
+  removePreKey = (keyId) => {
+    this.#preKeys.delete(keyId);
+    return Promise.resolve();
+  };
+  
+ 
+  loadSignedPreKey = (keyId) => Promise.resolve(this.#signedPreKeys.get(keyId) ?? undefined);
+  storeSignedPreKey = (keyId, keyPair) => {
+    this.#signedPreKeys.set(keyId, keyPair);
+    return Promise.resolve();
+  };
+  removeSignedPreKey = (keyId) => {
+    this.#signedPreKeys.delete(keyId);
+    return Promise.resolve();
+  };
 }
-
-// ----------------------------
-// Instancia global para uso simple
-// ----------------------------
-const globalSignalStore = new SignalStore();
-
-module.exports = {
-    SignalStore,
-    globalSignalStore
-};
