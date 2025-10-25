@@ -24,11 +24,15 @@
   "engines": {
     "node": ">=18"
   },
-  "optionalDependencies": {
-    "libsignal-protocol-javascript": "git+https://github.com/Aqua200/libsignal.git"
+  "dependencies": {
+    "libsignal-protocol-javascript": "git+https://github.com/Aqua200/libsignal.git",
+    "protobufjs": "^7.0.0"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0"
   },
   "scripts": {
-    "test": "node test.js",
+    "test": "jest",
     "start": "node src/index.js"
   }
 }
