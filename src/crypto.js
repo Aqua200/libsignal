@@ -1,80 +1,70 @@
-const crypto = require('crypto');
+import crypto from 'crypto';
+import { Buffer } from 'buffer';
 
-/**
- * Genera una clave aleatoria segura.
- * @param {number} length - Tamaño en bytes (por defecto 32 bytes).
- * @returns {Buffer}
- */
-function generateRandomKey(length = 32) {
-    return crypto.randomBytes(length);
+const AES_ALGORITHM = 'aes-256-gcm';
+const IV_LENGTH = 12; // GCM recomienda 12 bytes para el IV.
+const AUTH_TAG_LENGTH = 16; // GCM produce una etiqueta de 16 bytes.
+const KEY_LENGTH = 32; // Para AES-256.
+
+
+export function generateRandomKey() {
+  return crypto.randomBytes(KEY_LENGTH);
 }
 
-/**
- * Calcula el hash SHA-256 de una cadena o Buffer.
- * @param {string|Buffer} data
- * @returns {string} Hash en formato hexadecimal.
- */
-function sha256(data) {
-    return crypto.createHash('sha256').update(data).digest('hex');
+
+export function sha256(data) {
+  return crypto.createHash('sha256').update(data).digest('hex');
 }
 
-/**
- * Cifra datos con AES-256-CBC.
- * @param {Buffer|string} plaintext
- * @param {Buffer} key - Debe tener 32 bytes.
- * @param {Buffer} iv - Vector de inicialización (16 bytes).
- * @returns {string} Texto cifrado en base64.
- */
-function encryptAES(plaintext, key, iv) {
-    const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
-    let encrypted = cipher.update(plaintext, 'utf8', 'base64');
-    encrypted += cipher.final('base64');
-    return encrypted;
+
+export function encryptAES(plaintext, key) {
+  const iv = crypto.randomBytes(IV_LENGTH);
+  const cipher = crypto.createCipheriv(AES_ALGORITHM, key, iv);
+  
+  const encrypted = Buffer.concat([
+    cipher.update(plaintext, 'utf-8'),
+    cipher.final()
+  ]);
+  
+  const tag = cipher.getAuthTag();
+
+  return {
+    iv: iv.toString('base64'),
+    encrypted: encrypted.toString('base64'),
+    tag: tag.toString('base64')
+  };
 }
 
-/**
- * Descifra datos con AES-256-CBC.
- * @param {string} ciphertext - Texto cifrado en base64.
- * @param {Buffer} key - Debe tener 32 bytes.
- * @param {Buffer} iv - Vector de inicialización (16 bytes).
- * @returns {string} Texto plano.
- */
-function decryptAES(ciphertext, key, iv) {
-    const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
-    let decrypted = decipher.update(ciphertext, 'base64', 'utf8');
-    decrypted += decipher.final('utf8');
-    return decrypted;
+
+export function decryptAES(ciphertext, key, iv, tag) {
+  const ivBuffer = Buffer.from(iv, 'base64');
+  const encryptedBuffer = Buffer.from(ciphertext, 'base64');
+  const tagBuffer = Buffer.from(tag, 'base64');
+  
+  const decipher = crypto.createDecipheriv(AES_ALGORITHM, key, ivBuffer);
+  decipher.setAuthTag(tagBuffer);
+
+  const decrypted = Buffer.concat([
+    decipher.update(encryptedBuffer),
+    decipher.final()
+  ]);
+  
+  return decrypted.toString('utf-8');
 }
 
-/**
- * Convierte un Buffer a Base64 URL-safe.
- * @param {Buffer} buffer
- * @returns {string}
- */
-function toBase64Url(buffer) {
-    return buffer
-        .toString('base64')
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_')
-        .replace(/=+$/, '');
+
+
+export function toBase64Url(buffer) {
+  return buffer
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
 }
 
-/**
- * Convierte Base64 URL-safe a Buffer.
- * @param {string} base64url
- * @returns {Buffer}
- */
-function fromBase64Url(base64url) {
-    const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
-    const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
-    return Buffer.from(padded, 'base64');
-}
 
-module.exports = {
-    generateRandomKey,
-    sha256,
-    encryptAES,
-    decryptAES,
-    toBase64Url,
-    fromBase64Url
-};
+export function fromBase64Url(base64url) {
+  const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+ const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
+  return Buffer.from(padded, 'base64');
+}
