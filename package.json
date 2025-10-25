@@ -1,9 +1,38 @@
 {
-  "name": "libsignal",
-  "version": "2.0.0",
-  "description": "Fork temporal de libsignal-protocol-javascript para npm",
-  "main": "index.js",
+  "name": "libsignal-wrapper",
+  "version": "1.0.0",
+  "description": "Wrapper local del Signal Protocol para Node.js, compatible con Baileys y Termux.",
+  "main": "src/index.js",
   "type": "module",
   "author": "Aqua200",
-  "license": "MIT"
+  "license": "MIT",
+  "keywords": [
+    "libsignal",
+    "baileys",
+    "whatsapp",
+    "termux",
+    "signal-protocol"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Aqua200/libsignal.git"
+  },
+  "homepage": "https://github.com/Aqua200/libsignal",
+  "bugs": {
+    "url": "https://github.com/Aqua200/libsignal/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "libsignal-protocol-javascript": "git+https://github.com/Aqua200/libsignal.git",
+    "protobufjs": "^7.0.0"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0"
+  },
+  "scripts": {
+    "test": "jest",
+    "start": "node src/index.js"
+  }
 }
