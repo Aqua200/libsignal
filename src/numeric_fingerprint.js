@@ -1,50 +1,51 @@
-const crypto = require('crypto');
-const { toBase64Url, fromBase64Url } = require('./crypto');
+import crypto from 'crypto';
+import { Buffer } from 'buffer';
+import { fromBase64Url } from './crypto.js';
+import { InvalidKeyError } from './errors.js';
 
-/**
- * Convierte un Buffer en un fingerprint numérico de 12 dígitos
- * similar a como Signal muestra la verificación de seguridad.
- * 
- * @param {Buffer} keyBuffer - Clave pública o privada.
- * @returns {string} Fingerprint numérico de 12 dígitos.
- */
-function generateNumericFingerprint(keyBuffer) {
-    if (!Buffer.isBuffer(keyBuffer)) {
-        throw new TypeError("❌ generateNumericFingerprint requiere un Buffer");
-    }
+const FINGERPRINT_BYTE_SOURCE_LENGTH = 6; // Número de bytes del hash que se usarán como fuente.
+const FINGERPRINT_DIGIT_LENGTH = 12;      // Longitud final del string numérico.
 
-    // Hash SHA-256 de la clave
+export function generateNumericFingerprint(keyBuffer) {
+  if (!Buffer.isBuffer(keyBuffer) || keyBuffer.length === 0) {
+    throw new InvalidKeyError('La generación de fingerprint requiere un Buffer de clave no vacío.');
+  }
+
     const hash = crypto.createHash('sha256').update(keyBuffer).digest();
 
-    // Tomamos los últimos 6 bytes y los convertimos a número de 12 dígitos
-    const lastSixBytes = hash.slice(-6); // 6 bytes = 48 bits
-    const numeric = BigInt('0x' + lastSixBytes.toString('hex')).toString().padStart(12, '0');
+   const byteSlice = hash.slice(-FINGERPRINT_BYTE_SOURCE_LENGTH);
 
-    return numeric;
+    const numericString = BigInt('0x' + byteSlice.toString('hex')).toString();
+  
+    return numericString.padStart(FINGERPRINT_DIGIT_LENGTH, '0');
 }
 
-/**
- * Compara dos fingerprints numéricos
- * @param {string} fingerprintA
- * @param {string} fingerprintB
- * @returns {boolean} true si son iguales
- */
-function compareFingerprints(fingerprintA, fingerprintB) {
-    return fingerprintA === fingerprintB;
+
+export function compareFingerprints(fingerprintA, fingerprintB) {
+  if (typeof fingerprintA !== 'string' || typeof fingerprintB !== 'string') {
+    return false;
+  }
+
+  try {
+    const bufferA = Buffer.from(fingerprintA, 'utf-8');
+    const bufferB = Buffer.from(fingerprintB, 'utf-8');
+
+      if (bufferA.length !== bufferB.length) {
+      return false;
+    }
+    
+    return crypto.timingSafeEqual(bufferA, bufferB);
+  } catch (e) {
+    return false;
+  }
 }
 
-/**
- * Genera fingerprint a partir de Base64 URL-safe
- * @param {string} base64urlKey
- * @returns {string} fingerprint numérico
- */
-function fingerprintFromBase64Url(base64urlKey) {
+
+export function fingerprintFromBase64Url(base64urlKey) {
+  try {
     const buffer = fromBase64Url(base64urlKey);
     return generateNumericFingerprint(buffer);
-}
-
-module.exports = {
-    generateNumericFingerprint,
-    compareFingerprints,
-    fingerprintFromBase64Url
-};
+  } catch (error) {
+      throw new InvalidKeyError(`La clave Base64URL proporcionada es inválida: ${error.message}`, error);
+  }
+        }
