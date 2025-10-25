@@ -24,54 +24,66 @@ Permite gestionar **sesiones, PreKeys, cifrado/descifrado de mensajes**, y almac
 
 ## 📦 Instalación
 
-1. Clona el repositorio:
+1.  Clona el repositorio:
+    ```bash
+    git clone https://github.com/Aqua200/libsignal.git
+    cd libsignal
+    ```
+    *Este proyecto requiere **Node.js >= 18** y funciona en Termux.*
 
-```bash
-git clone https://github.com/tu-usuario/tu-repo.git
-cd tu-repo
+---
+
+## 🏗️ Estructura del proyecto
+
+src/
+
+base_key_type.js
+
+chain_type
+
+- crypto.js
+
+curve.js
+
+- errors.js
+
+keyhelper.js
+
+numeric_fingerpri
+
+protobufs.js
+
+protocol_addre
+
+queue_job.js
+
+- session_builde
+
+- session_cipher.js
+
+- session_re
+
+- signal_store.js
+
+WhisperTextProtocol.js
+
+package.json
+
+---
+
+## 🚀 Uso básico
+
+**Importante:** Este proyecto utiliza ES Modules. Asegúrate de usar la sintaxis `import`.
+
+#### Inicializar SignalStore
+```javascript
+import { globalSignalStore } from './src/signal_store.js';
 ```
 
 ---
 
-Este proyecto requiere Node.js >= 18 y funciona en Termux.
-
----
-Estructura del proyecto
-
-src/
-├─ base_key_type.js
-├─ chain_type.js
-├─ crypto.js
-├─ curve.js
-├─ errors.js
-├─ keyhelper.js
-├─ numeric_fingerprint.js
-├─ protobufs.js
-├─ protocol_address.js
-├─ queue_job.js
-├─ session_builder.js
-├─ session_cipher.js
-├─ session_record.js
-├─ signal_store.js
-└─ WhisperTextProtocol.js
-mylibsignal/
-├─ index.js
-├─ package.json
-
----
-
-Uso básico
-
-Inicializar SignalStore
-
-const { globalSignalStore } = require('./src/signal_store');
-
----
-
-Crear sesión con un contacto
-
-const ProtocolAddress = require('./src/protocol_address');
-const SessionBuilder = require('./src/session_builder');
+import ProtocolAddress from './src/protocol_address.js';
+import SessionBuilder from './src/session_builder.js';
 
 const contact = new ProtocolAddress('user@s.whatsapp.net', 1);
 const builder = new SessionBuilder(globalSignalStore);
@@ -88,27 +100,9 @@ const preKeyBundle = {
 builder.createSession(contact, preKeyBundle);
 
 ---
-Cifrar un mensaje
-
-
-const SessionCipher = require('./src/session_cipher');
-
-const cipher = new SessionCipher(globalSignalStore, contact);
-const encrypted = await cipher.encryptMessage("Hola mundo");
-
-console.log("📦 Mensaje cifrado:", encrypted);
-
----
-
-Descifrar un mensaje
-
-const decrypted = await cipher.decryptMessage(encrypted.body, encrypted.type);
-console.log("📄 Mensaje descifrado:", decrypted);
-
-
----
-
-Múltiples usuarios / sub-bots
+import ProtocolAddress from './src/protocol_address.js';
+import SessionBuilder from './src/session_builder.js';
+import { globalSignalStore } from './src/signal_store.js';
 
 const users = [
     new ProtocolAddress('user1@s.whatsapp.net', 1),
@@ -117,8 +111,11 @@ const users = [
 
 for (const user of users) {
     const builder = new SessionBuilder(globalSignalStore);
-    // preKeyBundle debe venir de cada usuario
-    builder.createSession(user, preKeyBundle);
+    // preKeyBundle debe venir de cada usuario específico
+    // builder.createSession(user, preKeyBundleDeCadaUsuario);
 }
 
----
+
+
+
+
