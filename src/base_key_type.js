@@ -1,14 +1,13 @@
-// src/base_key_type.js
 export const BaseKeyType = Object.freeze({
-  OURS: 'ours',
-  THEIRS: 'theirs',
-  TEMPORARY: 'temporary'
+ OURS: 'ours',
+  
+    THEIRS: 'theirs',
+  
+    TEMPORARY: 'temporary'
 });
-
 export function validateKeyType(keyType) {
   return Object.values(BaseKeyType).includes(keyType);
 }
-
 export function describeKeyType(keyType) {
   switch (keyType) {
     case BaseKeyType.OURS: return '🔐 Clave local de identidad (nuestra).';
