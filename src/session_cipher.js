@@ -1,78 +1,69 @@
-const libsignal = require('../mylibsignal'); // Wrapper local
-const ProtocolAddress = require('./protocol_address');
-const KeyHelper = require('./keyhelper');
-const {
-    EncryptionError,
-    DecryptionError,
-    UnknownMessageTypeError
-} = require('./errors');
+import { Buffer } from 'buffer';
+import ProtocolAddress from './protocol_address.js';
+import {
+  EncryptionError,
+  DecryptionError,
+  UnknownMessageTypeError,
+  StoreImplementationError,
+} from './errors.js';
+import { SignalMessageType } from './WhisperTextProtocol.js'; 
 
-/**
- * Clase para cifrar y descifrar mensajes de sesión Signal
- */
-class SessionCipher {
-    /**
-     * @param {object} store - Implementación de SignalProtocolStore
-     * @param {ProtocolAddress} address - Dirección del contacto
-     */
-    constructor(store, address) {
-        if (!store || typeof store.loadSession !== 'function') {
-            throw new TypeError("❌ store no implementa SignalProtocolStore correctamente.");
-        }
-        if (!(address instanceof ProtocolAddress)) {
-            throw new TypeError("❌ address debe ser instancia de ProtocolAddress");
-        }
 
-        this.store = store;
-        this.address = address;
-        this.sessionCipher = new libsignal.SessionCipher(store, address.toString());
+export default class SessionCipher {
+  
+  constructor({ store, address, libsignal }) {
+    if (!store || typeof store.loadSession !== 'function') {
+      throw new StoreImplementationError("El 'store' proporcionado no es una implementación válida.");
+    }
+    if (!(address instanceof ProtocolAddress)) {
+      throw new TypeError("El parámetro 'address' debe ser una instancia de ProtocolAddress.");
+    }
+    if (!libsignal || typeof libsignal.SessionCipher === 'undefined') {
+      throw new Error("La dependencia 'libsignal' no fue inyectada o es inválida.");
     }
 
-    /**
-     * Cifra un mensaje de texto
-     * @param {string|Buffer} plaintext
-     * @returns {Promise<{type: number, body: string}>} body en Base64
-     */
-    async encryptMessage(plaintext) {
-        try {
-            const buffer = Buffer.isBuffer(plaintext) ? plaintext : Buffer.from(plaintext, 'utf-8');
-            const ciphertext = await this.sessionCipher.encrypt(buffer);
-            return {
-                type: ciphertext.type,
-                body: Buffer.from(ciphertext.body || []).toString('base64')
-            };
-        } catch (error) {
-            console.error(`❌ Error cifrando mensaje para ${this.address.toString()}:`, error.message);
-            throw new EncryptionError(error.message);
-        }
+    this.address = address;
+        this.cipher = new libsignal.SessionCipher(store, address.toString());
+  }
+
+  
+  async encryptMessage(plaintext) {
+    try {
+      const buffer = Buffer.isBuffer(plaintext) ? plaintext : Buffer.from(plaintext, 'utf-8');
+      const ciphertext = await this.cipher.encrypt(buffer);
+      
+      return {
+        type: ciphertext.type, 
+        body: Buffer.from(ciphertext.body || '').toString('base64'),
+      };
+    } catch (error) {
+      console.error(`❌ Error cifrando mensaje para ${this.address}:`, error);
+      throw new EncryptionError(`Fallo al cifrar para ${this.address}`, error);
     }
+  }
 
-    /**
-     * Descifra un mensaje recibido
-     * @param {string|Buffer} ciphertext
-     * @param {number} messageType - SignalMessageType (WHISPER o PRE_KEY_BUNDLE)
-     * @returns {Promise<string>}
-     */
-    async decryptMessage(ciphertext, messageType) {
-        const cipherBuffer = Buffer.isBuffer(ciphertext) ? ciphertext : Buffer.from(ciphertext, 'base64');
+  
+  async decryptMessage(ciphertext, messageType) {
+    const cipherBuffer = Buffer.isBuffer(ciphertext) ? ciphertext : Buffer.from(ciphertext, 'base64');
 
-        try {
-            let decryptedBuffer;
+    try {
+      let decryptedBuffer;
 
-            if (messageType === 1) { // WHISPER
-                decryptedBuffer = await this.sessionCipher.decryptWhisperMessage(cipherBuffer, 'binary');
-            } else if (messageType === 3) { // PRE_KEY_BUNDLE
-                decryptedBuffer = await this.sessionCipher.decryptPreKeyWhisperMessage(cipherBuffer, 'binary');
-            } else {
-                throw new UnknownMessageTypeError();
-            }
+       switch (messageType) {
+        case SignalMessageType.WHISPER:
+          decryptedBuffer = await this.cipher.decryptWhisperMessage(cipherBuffer, 'binary');
+          break;
+        case SignalMessageType.PRE_KEY_BUNDLE:
+          decryptedBuffer = await this.cipher.decryptPreKeyWhisperMessage(cipherBuffer, 'binary');
+          break;
+        default:
+          throw new UnknownMessageTypeError(`Tipo de mensaje no soportado: ${messageType}`);
+      }
 
-            return decryptedBuffer.toString('utf-8');
-        } catch (error) {
-            console.error(`❌ Error descifrando mensaje de ${this.address.toString()}:`, error.message);
-            throw new DecryptionError(error.message);
-        }
+      return decryptedBuffer.toString('utf-8');
+    } catch (error) {
+      console.error(`❌ Error descifrando mensaje de ${this.address}:`, error);
+      throw new DecryptionError(`Fallo al descifrar un mensaje de ${this.address}`, error);
     }
+  }
 }
-
-module.exports = SessionCipher;
